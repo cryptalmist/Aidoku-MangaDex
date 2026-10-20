@@ -1,0 +1,53 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "multi.mangadex/**"
+      - ".github/**"
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.99.0"
+          targets: wasm32-unknown-unknown
+
+      - name: Cache rust stuff
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            multi.mangadex/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('multi.mangadex/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - uses: ./.github/actions/install-aidoku-cli
+
+      - name: Build source
+        run: |
+          set -euo pipefail
+          cd multi.mangadex
+          aidoku package
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: multi.mangadex
+          path: multi.mangadex/package.aix
+          if-no-files-found: error
