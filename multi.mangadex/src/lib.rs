@@ -477,47 +477,55 @@ impl MangaDex {
 
 	// get the logged in user's library
 	fn get_library(&self, page: i32) -> Result<MangaPageResult> {
-		let status_ids = Self::get(format!("{API_URL}/manga/status"))?
+		let statuses = Self::get(format!("{API_URL}/manga/status"))?
 			.send()?
 			.get_json::<DexStatusResponse>()?
-			.statuses
+			.statuses;
+
+		let total = statuses.keys().count() as i32;
+		let offset = (page - 1) * PAGE_SIZE;
+
+		if offset >= total {
+			return Ok(MangaPageResult {
+				entries: Vec::new(),
+				has_next_page: false,
+			});
+		}
+
+		let ids_params = statuses
 			.keys()
+			.skip(offset as usize)
+			.take(PAGE_SIZE as usize)
 			.fold(String::new(), |mut output, id| {
 				let _ = write!(output, "&ids[]={id}");
 				output
 			});
 
-		let offset = (page - 1) * PAGE_SIZE;
-
 		let manga_url = format!(
 			"{API_URL}/manga?\
 				&limit={PAGE_SIZE}\
-				&offset={offset}\
 				&includes[]=cover_art\
 				&contentRating[]=safe\
 				&contentRating[]=suggestive\
 				&contentRating[]=erotica\
 				&contentRating[]=pornographic\
-				{status_ids}",
+				{ids_params}",
 		);
 
-		let (entries, has_next_page) = Self::get(manga_url)?
+		let entries = Self::get(&manga_url)?
 			.authed_send()?
 			.get_json::<DexResponse<Vec<DexManga>>>()
 			.map(|response| {
-				(
-					response
-						.data
-						.into_iter()
-						.map(|value| value.into_basic_manga())
-						.collect::<Vec<Manga>>(),
-					response.total.is_some_and(|t| offset + PAGE_SIZE < t),
-				)
+				response
+					.data
+					.into_iter()
+					.map(|value| value.into_basic_manga())
+					.collect::<Vec<Manga>>()
 			})?;
 
 		Ok(MangaPageResult {
 			entries,
-			has_next_page,
+			has_next_page: offset + PAGE_SIZE < total,
 		})
 	}
 }
