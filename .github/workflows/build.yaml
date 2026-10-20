@@ -12,8 +12,6 @@ concurrency:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 jobs:
   build:
@@ -45,20 +43,12 @@ jobs:
           cd multi.mangadex
           aidoku package
 
-      - name: Upload package
-        uses: actions/upload-artifact@v4
+      - name: Create Release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
         with:
-          name: multi.mangadex
-          path: multi.mangadex/package.aix
-          if-no-files-found: error
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: multi.mangadex
-
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v4
+          files: multi.mangadex/package.aix
+          tag_name: v${{ github.run_number }}
+          name: Release ${{ github.run_number }}
+          draft: false
+          prerelease: false
