@@ -478,7 +478,7 @@ impl MangaDex {
 	// get the logged in user's library
 	fn get_library(&self, page: i32) -> Result<MangaPageResult> {
 		let statuses = Self::get(format!("{API_URL}/manga/status"))?
-			.send()?
+			.authed_send()?
 			.get_json::<DexStatusResponse>()?
 			.statuses;
 
